@@ -1,0 +1,16 @@
+apply plugin: 'java'
+apply plugin: 'application'
+
+mainClassName = 'echo.EchoServer'
+
+jar {
+    baseName = 'learn-sockets'
+    version =  '0.1.0'
+    manifest {
+        attributes 'Main-Class': 'echo.EchoServer'
+    }
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '1.11'
+}
