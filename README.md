@@ -5,13 +5,13 @@ Dirty dirty server.
 Spiking out a basic HTTP server.
 
 ## Configuration
-Navigate to the root directory and execute:··
+Navigate to the root directory and execute:  
 `gradle build`
 
-To start the server execute:··
+To start the server execute:  
 `java -jar build/libs/learn-sockets-0.1.0.jar`
 
-The server can be found at:
+The server can be found at:  
 `localhost:5000`
 
 ## How to demo GET/POST/PUT/DELETE
