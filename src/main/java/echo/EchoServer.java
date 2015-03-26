@@ -2,40 +2,56 @@ package echo;
 
 import java.io.*;
 import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class EchoServer {
-    public static void main(String[] args) {
+    public static void main(String[] args) { // avoid static methods (harder to test)
         try {
             ServerSocket sock = new ServerSocket(5000);
-            ArrayList<Hashtable<String, String>> savedData = new ArrayList<Hashtable<String, String>>(); // don't save to memory, instead use sessions or cookies
+
+            // use a session to save data
+            ArrayList<Hashtable<String, String>> savedData = new ArrayList<Hashtable<String, String>>();
 
             while (true) {
+                // catch should be for catching an error, but keep the server running
                 System.out.println("LISTENING...");
-                Socket incoming = sock.accept(); // starts listening for a client socket
+                Socket incoming = sock.accept();
 
                 BufferedReader in
-                        = new BufferedReader(
+                      = new BufferedReader(
                             new InputStreamReader(
                                 incoming.getInputStream()));
 
+                OutputStream outStream = incoming.getOutputStream();
+
+                // don't need PrintWriter
                 PrintWriter out
-                        = new PrintWriter(
+                      = new PrintWriter(
                             new OutputStreamWriter(
-                                incoming.getOutputStream()));
+                                outStream));
+
+                // IF in.ready() is true then read the line
+                // ELSE close the connection
 
                 String request = in.readLine();
+
+                System.out.println(request);
 
                 if (request.contains("GET /form")) {
                     showData(savedData, out);
 
                     out.flush();
-                    out.write("HTTP/1.1 200 OK\r\n");
+                    out.write("HTTP/1.1 200 OK");
+                    out.write("Content-Type: text/plain");
+                    out.write("\r\n");
+                    out.write("some response here");
                     out.flush();
                 }
                 else if (request.contains("POST /form")) {
@@ -62,8 +78,22 @@ public class EchoServer {
                     out.write("HTTP/1.1 200 OK\r\n");
                     out.flush();
                 }
+                else if (request.contains("GET /sample.pdf")) {
+                    byte[] bytes = convertToByteArray("public/sample.pdf");
+
+                    out.flush();
+                    outStream.write(bytes);
+                    out.flush();
+                }
+                else if (request.contains("GET /mindblown.gif")) {
+                    byte[] bytes = convertToByteArray("public/mindblown.gif");
+
+                    out.flush();
+                    // socket is closing before I can send/finish a request
+                    outStream.write(bytes);
+                    out.flush();
+                }
                 else if (request.contains("GET / HTTP/1.1")) {
-                    System.out.println(request);
                     out.flush();
                     out.write("HTTP/1.1 200 OK\r\n");
                     out.flush();
@@ -74,15 +104,23 @@ public class EchoServer {
                     out.flush();
                 }
 
-                incoming.close(); // stops listening
+                incoming.close();
             }
         } catch (Exception err) {
             System.out.println(err);
+            err.printStackTrace();
         }
     }
 
+    public static byte[] convertToByteArray(String file) throws IOException {
+        // image specific bug? Maybe because it's a large image? 9M Multiple threads?
+        Path path = Paths.get(file);
+        byte[] data = Files.readAllBytes(path);
+
+        return data;
+    }
+
     private static void showData(ArrayList<Hashtable<String, String>> savedData, PrintWriter out) {
-        System.out.println(savedData);
         out.println(savedData);
         out.flush();
     }
@@ -114,7 +152,6 @@ public class EchoServer {
     private static Hashtable parseData(BufferedReader in) throws IOException {
         String request = requestToString(in);
         String body = captureBodyFrom(request);
-        System.out.println(body);
         String [] lines = createLinesFrom(body);
 
         return createHashFrom(lines);
@@ -122,10 +159,10 @@ public class EchoServer {
 
     private static Hashtable createHashFrom(String[] lines) {
         Hashtable<String, String> postedData = new Hashtable<String, String>();
-        Pattern keyValuePattern = Pattern.compile("\"?(\\w+)\"?=\"?(\\w+)\"?");
+        Pattern findKeyValue = Pattern.compile("\"?(\\w+)\"?=\"?(\\w+)\"?");
 
         for(String line : lines){
-            Matcher lineMatcher = keyValuePattern.matcher(line.trim());
+            Matcher lineMatcher = findKeyValue.matcher(line.trim());
             lineMatcher.find();
             postedData.put(lineMatcher.group(1), lineMatcher.group(2));
         }
